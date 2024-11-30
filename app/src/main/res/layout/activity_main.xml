@@ -30,4 +30,12 @@
         app:lottie_rawRes="@raw/talking"
         tools:ignore="ImageContrastCheck" />
 
+    <VideoView
+        android:id="@+id/videoView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:visibility="gone" />
+
 </RelativeLayout>
