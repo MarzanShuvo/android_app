@@ -1,3 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">My Application</string>
+    <string name="accessibility_description">Allows the app to control screen state</string>
 </resources>

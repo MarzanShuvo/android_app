@@ -1,10 +1,16 @@
 package com.example.myapplication;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.KeyguardManager;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.os.PowerManager;
+import android.os.PowerManager.WakeLock;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.Toast;
 import android.widget.VideoView;
@@ -30,6 +36,8 @@ public class MainActivity extends AppCompatActivity {
 
     private LottieAnimationView animationView1;
     private LottieAnimationView animationView2;
+
+    private LottieAnimationView animationView3;
     private VideoView videoView;
     private Handler uiHandler;
     private boolean isAnimation1Visible = true;
@@ -39,6 +47,9 @@ public class MainActivity extends AppCompatActivity {
     private ZMQ.Socket zmqSocket;
     private boolean isDialogDisplayed = false; // Prevent multiple dialogs
 
+    private WakeLock wakeLock;
+
+    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
         // Initialize views
         animationView1 = findViewById(R.id.animationView1);
         animationView2 = findViewById(R.id.animationView2);
+        animationView3 = findViewById(R.id.animationView3);
         videoView = findViewById(R.id.videoView);
 
         // Configure VideoView with MediaController
@@ -73,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
         animationView1.setVisibility(LottieAnimationView.VISIBLE);
         animationView1.playAnimation();
         animationView2.setVisibility(LottieAnimationView.GONE);
+        animationView3.setVisibility(LottieAnimationView.GONE);
         videoView.setVisibility(VideoView.GONE);
 
         // Request necessary media permissions
@@ -179,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
                 poller.register(zmqSocket, ZMQ.Poller.POLLIN);
 
                 while (!Thread.currentThread().isInterrupted()) {
-                    int events = poller.poll(5000); // Wait for events
+                    int events = poller.poll(10); // Wait for events
                     if (events > 0 && poller.pollin(0)) {
                         String message = zmqSocket.recvStr(0);
                         if (message != null) {
@@ -202,14 +215,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void handleZmqMessage(String message) {
         uiHandler.post(() -> {
-            if ("1".equals(message) || "0".equals(message)) {
-                lastMessage = message; // Update only if the message is "1" or "0"
+            if ("1".equals(message) || "0".equals(message) || "2".equals(message)) {
+                lastMessage = message; // Update only if the message is "1", "0", or "2"
             }
             if ("1".equals(message)) {
                 stopVideoPlayback();
                 // Show animation 1
                 animationView2.cancelAnimation();
+                animationView3.cancelAnimation();
                 animationView2.setVisibility(LottieAnimationView.GONE);
+                animationView3.setVisibility(LottieAnimationView.GONE);
                 animationView1.setVisibility(LottieAnimationView.VISIBLE);
                 animationView1.playAnimation();
                 isAnimation1Visible = true;
@@ -217,9 +232,21 @@ public class MainActivity extends AppCompatActivity {
                 stopVideoPlayback();
                 // Show animation 2
                 animationView1.cancelAnimation();
+                animationView3.cancelAnimation();
                 animationView1.setVisibility(LottieAnimationView.GONE);
+                animationView3.setVisibility(LottieAnimationView.GONE);
                 animationView2.setVisibility(LottieAnimationView.VISIBLE);
                 animationView2.playAnimation();
+                isAnimation1Visible = false;
+            } else if ("2".equals(message)) {
+                stopVideoPlayback();
+                // Show animation 3 (Listening)
+                animationView1.cancelAnimation();
+                animationView2.cancelAnimation();
+                animationView1.setVisibility(LottieAnimationView.GONE);
+                animationView2.setVisibility(LottieAnimationView.GONE);
+                animationView3.setVisibility(LottieAnimationView.VISIBLE);
+                animationView3.playAnimation();
                 isAnimation1Visible = false;
             } else if (message.startsWith("file://")) {
                 // Play video
@@ -228,27 +255,45 @@ public class MainActivity extends AppCompatActivity {
                 videoView.setVideoPath(message);
                 videoView.start();
                 isVideoPlaying = true;
+            } else if ("TURN_ON".equals(message)) {
+                turnOnScreen();
+            } else if ("TURN_OFF".equals(message)) {
+                turnOffScreen();
             }
         });
     }
 
+
     private void handleAnimationAfterVideo() {
         if ("1".equals(lastMessage)) {
             animationView2.cancelAnimation();
+            animationView3.cancelAnimation();
             animationView2.setVisibility(LottieAnimationView.GONE);
+            animationView3.setVisibility(LottieAnimationView.GONE);
             animationView1.setVisibility(LottieAnimationView.VISIBLE);
             animationView1.playAnimation();
             isAnimation1Visible = true;
         } else if ("0".equals(lastMessage)) {
             animationView1.cancelAnimation();
+            animationView3.cancelAnimation();
             animationView1.setVisibility(LottieAnimationView.GONE);
+            animationView3.setVisibility(LottieAnimationView.GONE);
             animationView2.setVisibility(LottieAnimationView.VISIBLE);
             animationView2.playAnimation();
+            isAnimation1Visible = false;
+        } else if ("2".equals(lastMessage)) {
+            animationView1.cancelAnimation();
+            animationView2.cancelAnimation();
+            animationView1.setVisibility(LottieAnimationView.GONE);
+            animationView2.setVisibility(LottieAnimationView.GONE);
+            animationView3.setVisibility(LottieAnimationView.VISIBLE);
+            animationView3.playAnimation();
             isAnimation1Visible = false;
         }
         videoView.setVisibility(VideoView.GONE);
         isVideoPlaying = false;
     }
+
 
     private void stopVideoPlayback() {
         if (isVideoPlaying) {
@@ -258,11 +303,35 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void turnOnScreen() {
+        Intent intent = new Intent(MainActivity.this, WakeUpActivity.class); // ✅ Explicit context
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                Intent.FLAG_ACTIVITY_SINGLE_TOP |
+                Intent.FLAG_ACTIVITY_NO_HISTORY);
+        startActivity(intent);
+    }
+
+
+
+
+
+    private void turnOffScreen() {
+        ScreenOffService.turnOffScreen(); // Calls the method in the Accessibility Service
+        Toast.makeText(this, "Screen turned OFF by ZMQ", Toast.LENGTH_SHORT).show();
+    }
+
+
+
+
+
     private void stopAnimations() {
         animationView1.cancelAnimation();
         animationView2.cancelAnimation();
+        animationView3.cancelAnimation(); // Add this line
         animationView1.setVisibility(LottieAnimationView.GONE);
         animationView2.setVisibility(LottieAnimationView.GONE);
+        animationView3.setVisibility(LottieAnimationView.GONE); // Hide animationView3 too
     }
 
     @Override

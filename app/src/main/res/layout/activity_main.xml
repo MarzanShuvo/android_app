@@ -27,6 +27,15 @@
         app:lottie_rawRes="@raw/talking"
         tools:ignore="ImageContrastCheck" />
 
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/animationView3"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="true"
+        app:lottie_rawRes="@raw/listening"
+        tools:ignore="ImageContrastCheck" />
+
     <VideoView
         android:id="@+id/videoView"
         android:layout_width="match_parent"
