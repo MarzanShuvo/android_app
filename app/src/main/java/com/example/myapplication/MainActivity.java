@@ -47,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
     private ZMQ.Socket zmqSocket;
     private boolean isDialogDisplayed = false; // Prevent multiple dialogs
 
+    private ZMQ.Socket zmqSender;
+
     private WakeLock wakeLock;
 
     @SuppressLint("MissingInflatedId")
@@ -183,10 +185,12 @@ public class MainActivity extends AppCompatActivity {
             try {
                 zmqContext = ZMQ.context(1);
                 zmqSocket = zmqContext.socket(ZMQ.SUB);
+                zmqSender = zmqContext.socket(ZMQ.PUSH);
                 zmqSocket.subscribe(""); // Subscribe to all topics
                 zmqSocket.connect("tcp://" + ipAddress + ":5556");
 
                 System.out.println("Connected to: tcp://" + ipAddress + ":5556");
+                zmqSender.connect("tcp://" + ipAddress + ":5557");
 
                 ZMQ.Poller poller = zmqContext.poller(1);
                 poller.register(zmqSocket, ZMQ.Poller.POLLIN);
@@ -257,8 +261,10 @@ public class MainActivity extends AppCompatActivity {
                 isVideoPlaying = true;
             } else if ("TURN_ON".equals(message)) {
                 turnOnScreen();
+                sendMessageBack("TURN_ON");
             } else if ("TURN_OFF".equals(message)) {
                 turnOffScreen();
+                sendMessageBack("TURN_OFF");
             }
         });
     }
@@ -361,4 +367,18 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    private void sendMessageBack(String response) {
+        if (zmqSender != null) {
+            new Thread(() -> {
+                try {
+                    zmqSender.send(response);
+                    System.out.println("Sent message back: " + response);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        }
+    }
+
 }
