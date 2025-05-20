@@ -229,6 +229,7 @@ public class MainActivity extends AppCompatActivity {
                 animationView3.cancelAnimation();
                 animationView2.setVisibility(LottieAnimationView.GONE);
                 animationView3.setVisibility(LottieAnimationView.GONE);
+
                 animationView1.setVisibility(LottieAnimationView.VISIBLE);
                 animationView1.playAnimation();
                 isAnimation1Visible = true;
@@ -298,6 +299,7 @@ public class MainActivity extends AppCompatActivity {
         }
         videoView.setVisibility(VideoView.GONE);
         isVideoPlaying = false;
+        sendMessageBack("VIDEO_FINISHED");
     }
 
 
@@ -319,16 +321,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-
-
-
     private void turnOffScreen() {
         ScreenOffService.turnOffScreen(); // Calls the method in the Accessibility Service
         Toast.makeText(this, "Screen turned OFF by ZMQ", Toast.LENGTH_SHORT).show();
     }
-
-
-
 
 
     private void stopAnimations() {
